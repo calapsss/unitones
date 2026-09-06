@@ -402,10 +402,10 @@ export default function App() {
             <Activity size={25} />
           </div>
           <div>
-            UNIT READINESS<small>PERSONNEL OPERATIONS</small>
+            UNIT ONES<small>PERSONNEL OPERATIONS</small>
           </div>
         </div>
-        <div className="workspace-label">REPORTING WORKSPACE</div>
+        <div className="workspace-label">AETC REPORTING WORKSPACE</div>
         <label className="workspace">
           <ShieldCheck size={18} />
           <select
@@ -416,7 +416,7 @@ export default function App() {
           >
             <optgroup label="Headquarters">
               {workspaces
-                .filter((w) => w.role === "hq")
+                .filter((w) => w.role === "hq" && w.id === "AETC")
                 .map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.name}
@@ -460,11 +460,7 @@ export default function App() {
             <br />
             One consolidated picture.
           </p>
-          <small>
-            Demo workspace switching
-            <br />
-            is not production authentication.
-          </small>
+          <small>From the source to the daily picture</small>
         </div>
       </aside>
       <div className="main-shell">
@@ -491,11 +487,8 @@ export default function App() {
         <main>
           <div className="demo-strip">
             <span className="live-dot" />
-            <strong>Demonstration data</strong>
-            <span>
-              BAGWIS-derived ranks & assignments. Names pseudonymized. Daily
-              statuses simulated.
-            </span>
+            <strong>From the source to the daily picture</strong>
+            <span>BAGWIS personnel, unit reporting, and headquarters consolidation</span>
           </div>
           {error && (
             <div role="alert" className="error">
@@ -1793,7 +1786,7 @@ export default function App() {
                         </ol>
                         <p>
                           Imported {time(provenance?.manifest.imported_at)}.
-                          Names are pseudonyms; real source identifiers remain
+                          Names come from the BAGWIS effective roster; source identifiers remain
                           local. The importer does not overwrite subsequent unit
                           reporting.
                         </p>
@@ -1837,7 +1830,7 @@ export default function App() {
             </>
           )}
           <footer>
-            <span>UNIT READINESS · LOCAL PROTOTYPE</span>
+            <span>UNIT ONES · LOCAL PROTOTYPE</span>
             <span>
               Reporting date in Asia/Manila · Human staff certify the
               operational picture

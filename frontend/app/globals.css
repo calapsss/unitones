@@ -1345,3 +1345,26 @@ textarea:disabled {
     font-size: 11px;
   }
 }
+
+/* BAGWIS brand layer: dark intelligence workspace with blue/cyan/violet accents. */
+:root {
+  --ink: #d4d8e3;
+  --muted: #9aa1b3;
+  --line: rgba(255,255,255,.09);
+  --green: #20b9f5;
+  --amber: #ffbc36;
+  --navy: #08090c;
+  --bg: #000000;
+}
+body { background: radial-gradient(circle at 75% -10%, rgba(32,185,245,.10), transparent 34%), #000; color: var(--ink); }
+aside { background: #08090c; border-right: 1px solid rgba(255,255,255,.08); }
+.workspace { background: #121318; border-color: rgba(255,255,255,.12); }
+nav button:hover { background: #161820; }
+nav button.active { background: linear-gradient(90deg, rgba(45,92,255,.28), rgba(32,185,245,.12)); color: #dff5ff; box-shadow: inset 3px 0 #20b9f5; }
+.main-shell { background: #000; }
+header { background: rgba(10,11,14,.92); border-color: rgba(255,255,255,.08); }
+.card, .panel, .stat, .table-wrap, .empty, .demo-strip { background: #0a0b0e; border-color: rgba(255,255,255,.08); }
+button, .button, input, select, textarea { background: #121318; border-color: rgba(255,255,255,.12); color: var(--ink); }
+button:hover, .button:hover { background: #191c26; border-color: rgba(32,185,245,.45); }
+.primary { background: #2d5cff !important; border-color: #2d5cff !important; }
+.chip { background: rgba(32,185,245,.12); color: #dff5ff; border-color: rgba(32,185,245,.25); }

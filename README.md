@@ -1,8 +1,8 @@
-# Unit Readiness
+# Unit Ones
 
 A local personnel reporting prototype: units maintain daily returns; headquarters sees automatically consolidated assigned strength, availability, reporting coverage and revision provenance.
 
-**Open [Unit Readiness](http://127.0.0.1:3200).** The full stack uses Next.js, FastAPI and an independent PostgreSQL database through Docker Compose. BAGWIS remains unchanged.
+**Open [Unit Ones](http://127.0.0.1:3200).** The full stack uses Next.js, FastAPI and an independent PostgreSQL database through Docker Compose. BAGWIS remains unchanged.
 
 ## Start
 
@@ -20,6 +20,14 @@ This creates a local session secret if needed and starts the existing database a
 
 Database: `readiness`; user: `readiness`; password: `local-prototype-only`. These are dedicated local demo credentials. Data persists in the Compose `readiness-data` volume. `docker compose stop` stops only this stack without deleting its data.
 
+## AETC submission basis
+
+`OK 505SRG.xlsx` is a sample of the kind of unit submission sent to DPP. It is a format reference only and is not imported or used to seed Unit Ones. Unit Ones seeds the complete AETC personnel population from the read-only BAGWIS effective-roster view, then prepares the AETC unit return and consolidated picture in the same submission-oriented workflow.
+
+## Presentation framing
+
+The visible presentation story is **From the source to the daily picture**. Scope and policy caveats are maintained here and in [discovery](docs/discovery.md), rather than in the presentation banner. The local prototype uses BAGWIS effective-roster data and unit-owned reporting to show the flow into a consolidated headquarters picture.
+
 ## Demo in three minutes
 
 1. Open the app in the **AETC** workspace. The initial date is the seeded demonstration date. Inspect reporting coverage, missing units, status composition and the seven-day picture.
@@ -27,11 +35,11 @@ Database: `readiness`; user: `readiness`; password: `local-prototype-only`. Thes
 3. **Save draft**. In another browser context or by switching workspace, headquarters still sees the last publication. The unit row indicates a newer draft.
 4. Return to the unit and choose **Review & publish**. Enter a reason and publish. Switch to AETC and click **Recompute** (or wait up to 15 seconds). Available strength increases and the published revision advances.
 5. Open the unit's **Revision trail** to inspect the earlier values. In **Strength & establishment**, compare officer/EP/civilian counts and rank distribution. Unit-declared authorized counts and a named authority enable fill calculations.
-6. Switch to **DPP OA-1 · pilot coverage** to inspect the selected cross-command population, export JSON, or define MWB's policy effect. A new policy version recomputes current-policy summaries while retaining original submission policy history.
+6. Open **Sources & scope** to inspect the BAGWIS provenance and AETC submission flow. Export the AETC picture when needed.
 
 Choose an unreported date to demonstrate that prior statuses do not automatically carry forward. An unconfirmed return may be published, but unresolved statuses remain visible and its availability percentage is withheld.
 
-**Data boundary:** the initial 1,595 personnel ranks and assignments come from local BAGWIS effective current-roster records. Names are pseudonyms. Daily statuses are simulated, not actual hospitalization/absence reports. Scope covers selected mother-unit populations, not complete commands or the PAF. Sources & scope in the app explains these limits.
+**Data boundary:** the initial 1,144 AETC personnel ranks and assignments come from local BAGWIS effective current-roster records. Names are imported from the read-only BAGWIS effective roster. Daily statuses are simulated, not actual hospitalization/absence reports. Scope covers the AETC population only, not the complete PAF. Sources & scope in the app explains these limits.
 
 ## Seed a fresh prototype database
 
@@ -81,4 +89,4 @@ The workspace selector is an explicitly labeled **demo role switch**, not authen
 - [Architecture, model and API](docs/architecture.md)
 - [Verification evidence](docs/verification.md)
 
-Unit Readiness is independent. The JSON export is a candidate DPP OA-1/BAGWIS data contract; there is no outbound synchronization or official policy approval implied.
+Unit Ones is independent. The JSON export is a candidate DPP OA-1/BAGWIS data contract; there is no outbound synchronization or official policy approval implied.

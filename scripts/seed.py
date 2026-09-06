@@ -1,7 +1,7 @@
 """One-time minimal read-only BAGWIS snapshot. Never writes to the source.
 
 Run with the repository venv. Demo availability is deliberately simulated and
-names are pseudonymized. Source identity stays in the local database only.
+names are imported from the read-only BAGWIS effective-roster snapshot for this local prototype.
 """
 
 import os, sys, json, hashlib
@@ -17,23 +17,10 @@ from main import DB, DEFAULT_RULES
 
 GROUPS = {
     "AETC": [
-        "PAFFS",
-        "PAFOCS",
-        "PAFTSS",
-        "PAFBMS",
-        "NCOS",
-        "AFOS",
-        "PAFLTC",
-        "440AMG",
-        "442OMS",
-        "441SSS",
-        "443FMS",
-        "PAFALEN",
-        "HAETDC",
-        "AETC",
+        "PAFFS", "PAFOCS", "PAFTSS", "PAFBMS", "NCOS", "AFOS",
+        "PAFLTC", "440AMG", "442OMS", "441SSS", "443FMS", "PAFALEN",
+        "HAETDC", "AETC",
     ],
-    "ADC": ["HADC", "HADC-PADCC", "DASF", "ADC"],
-    "505SRG": ["H505SRG", "5051SRS", "5055FMS", "5054SSS", "5057PRS", "505SRG"],
 }
 
 
@@ -48,11 +35,11 @@ def run():
         source_database = source.info.dbname
         source.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         rows = source.execute(
-            """SELECT afpsn,rank_abbrv,pers_classification,mother_unit_abbrv,sub_unit_abbrv,
+            """SELECT afpsn,full_name,rank_abbrv,pers_classification,mother_unit_abbrv,sub_unit_abbrv,
           fetched_at,effective_current_roster_member,rank_abbrv_assertion_id,mother_unit_abbrv_assertion_id,
           sub_unit_abbrv_assertion_id FROM hrmis.personnel_effective
-          WHERE mother_unit_abbrv = ANY(%s) AND effective_current_roster_member IS TRUE ORDER BY afpsn""",
-            (list(GROUPS),),
+          WHERE (mother_unit_abbrv = ANY(%s) OR sub_unit_abbrv = %s) AND effective_current_roster_member IS TRUE ORDER BY afpsn""",
+            (list(GROUPS), "AETC"),
         ).fetchall()
     if not rows:
         raise RuntimeError("No current BAGWIS roster rows; refusing an empty seed")
@@ -88,7 +75,7 @@ def run():
             False,
             {
                 "kind": "prototype_reporting_root",
-                "scope": "AETC, ADC headquarters population, 505SRG only; not total PAF",
+                "scope": "AETC mother and sub-unit population only; not total PAF",
             },
         )
         for command in GROUPS:
@@ -120,7 +107,9 @@ def run():
                     },
                 )
         for i, r in enumerate(rows):
-            command = r["mother_unit_abbrv"]
+            # Include all AETC personnel, including records whose source mother unit
+            # is PAFHRMC/TDC/PAFFS but whose current sub-unit is AETC.
+            command = "AETC" if r["sub_unit_abbrv"] == "AETC" else r["mother_unit_abbrv"]
             sub = r["sub_unit_abbrv"]
             owner = sub if sub in GROUPS[command] else "REVIEW"
             key = hashlib.sha256(("unit-readiness:" + r["afpsn"]).encode()).hexdigest()[
@@ -136,7 +125,7 @@ def run():
                 "imported_at": now.isoformat(),
                 "mapping_version": 1,
                 "assignment_review": owner == "REVIEW",
-                "identity_display": "pseudonymized",
+                "identity_display": "BAGWIS full_name",
                 "assertions": {k: r[k] for k in r if k.endswith("_assertion_id")},
             }
             category = {
@@ -149,7 +138,7 @@ def run():
                 (
                     key,
                     f"{command}--{owner}",
-                    f"Personnel {i+1:04}",
+                    r["full_name"] or f"Personnel {i+1:04}",
                     r["rank_abbrv"] or "Unspecified",
                     category,
                     Jsonb(src),
@@ -213,10 +202,10 @@ def run():
                 json.dumps(rows, sort_keys=True, default=str).encode()
             ).hexdigest(),
             "availability": "Simulated demo statuses, not operational facts",
-            "names": "Pseudonymized; ranks and assignments from source",
+            "names": "Actual full names, ranks, and assignments imported from the read-only BAGWIS snapshot",
             "hierarchy": "Candidate ownership from mother/sub-unit fields. Unmapped labels routed to Assignment review, never silently reassigned.",
             "limitations": [
-                "Selected mother-unit populations only; ADC excludes separately recorded wings.",
+                "Selected BAGWIS population: all AETC personnel by mother or sub-unit.",
                 "No live civilian roster imported.",
                 "No imported daily status is certified.",
             ],

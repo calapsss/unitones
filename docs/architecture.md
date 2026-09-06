@@ -22,7 +22,7 @@ No background process fetches from or writes to BAGWIS. No reporting data is sen
 | Record | Ownership and semantics |
 | --- | --- |
 | `units` | Stable prototype ID, display name, parent, reporting flag and source/mapping metadata. The initial tree is candidate ownership from source mother/sub-unit labels. |
-| `personnel` | Initial roster identity, unit owner, pseudonymous display name, effective source rank/category, minimal source provenance and a `starts_on` date for local additions. |
+| `personnel` | Initial roster identity, unit owner, BAGWIS display name, effective source rank/category, minimal source provenance and a `starts_on` date for local additions. |
 | `returns` | Immutable full snapshot for a unit and reporting day. Includes monotonic unit/day revision, draft/published state, actor, reason, timestamp, entries, organization snapshot, establishment and submission policy ID. |
 | `policies` | Immutable version of status labels and their availability effects, with actor and reason. |
 | `seed_runs` | Import manifest: source table/filter, snapshot hash, source refresh range, import time, population, mapping scope and demonstration caveats. |
@@ -76,6 +76,6 @@ The export is computed on demand. A downloaded JSON is an immutable local artifa
 
 The demo selector intentionally permits choosing any seeded workspace. It is not login/authentication for operational deployment. After selection, backend checks enforce owning-unit writes and descendant read scope, even if requests bypass the UI. The DPP pilot root alone can change shared policy. Sessions expire after one day.
 
-All published host ports bind to `127.0.0.1`; PostgreSQL credentials and session signing are independent of BAGWIS. `.env`, `.local`, workbooks, snapshots and backups are ignored by Git. Source data lives only in the dedicated database and controlled local artifacts. Do not treat loopback binding or pseudonymous display as permission for public deployment. Production needs real identity, policy-defined roles, medical-data access controls, audit operations and validated reporting boundaries.
+All published host ports bind to `127.0.0.1`; PostgreSQL credentials and session signing are independent of BAGWIS. `.env`, `.local`, workbooks, snapshots and backups are ignored by Git. Source data lives only in the dedicated database and controlled local artifacts. Do not treat loopback binding or BAGWIS display as permission for public deployment. Production needs real identity, policy-defined roles, medical-data access controls, audit operations and validated reporting boundaries.
 
 The seed configuration resides in `scripts/seed.py`: explicit grouping lists and review fallback are kept out of the calculation engine. The calculation defaults live in `DEFAULT_RULES`, with versioned MWB/passes decisions exposed in the policy UI. An unresolved policy is represented by `null`, not an assumed available person.

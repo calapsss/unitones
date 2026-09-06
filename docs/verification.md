@@ -8,7 +8,7 @@ Verified locally on September 6, 2026. Detailed generated artifacts remain in ig
 - Source service health confirmed BAGWIS PostgreSQL personnel mode, without CSV fallback.
 - Imported 1,595 effective current-roster members from the local BAGWIS effective view using a read-only, repeatable-read source transaction.
 - Snapshot manifest records scope, source refresh range, import timestamp and hash. Real names and sensitive biographic fields were not imported.
-- Dedicated Unit Readiness PostgreSQL, FastAPI and production-built Next.js run through Docker Compose on loopback ports 5546, 8200 and 3200.
+- Dedicated Unit Ones PostgreSQL, FastAPI and production-built Next.js run through Docker Compose on loopback ports 5546, 8200 and 3200.
 
 ## PostgreSQL integration tests
 

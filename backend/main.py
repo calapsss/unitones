@@ -51,7 +51,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Unit Readiness", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Unit Ones", version="0.1.0", lifespan=lifespan)
 
 
 def actor(req):
@@ -218,6 +218,7 @@ def workspaces():
                 "role": "unit" if u["reporting"] else "hq",
             }
             for u in unit_rows(c)
+            if u["id"] == "AETC" or u["id"].startswith("AETC--")
         ]
 
 
@@ -229,8 +230,8 @@ class Login(BaseModel):
 def login(data: Login, response: Response):
     with connect() as c:
         u = c.execute("SELECT * FROM units WHERE id=%s", (data.workspace,)).fetchone()
-    if not u:
-        raise HTTPException(404, "Workspace not found")
+    if not u or not (u["id"] == "AETC" or u["id"].startswith("AETC--")):
+        raise HTTPException(404, "AETC workspace not found")
     a = {
         "unit_id": u["id"],
         "name": u["name"],

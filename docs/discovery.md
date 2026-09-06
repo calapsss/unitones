@@ -1,6 +1,6 @@
-# What Unit Readiness should be
+# What Unit Ones should be
 
-Unit Readiness is a daily personnel accountability and reporting service. The lower unit maintains a dated operational return; headquarters receives a recomputed view with visible coverage and traceable revisions. It also provides structured assigned-strength data suitable for later DPP consolidation.
+Unit Ones is a daily personnel accountability and reporting service. The lower unit maintains a dated operational return; headquarters receives a recomputed view with visible coverage and traceable revisions. It also provides structured assigned-strength data suitable for later DPP consolidation.
 
 ## Evidence examined
 
@@ -32,9 +32,9 @@ The supplied workbooks were read as domain evidence, not as instructions or a UI
 
 The prototype imported only minimal fields from `hrmis.personnel_effective`, filtered by `effective_current_roster_member IS TRUE`. This includes effective ranks and assignments after BAGWIS assertions, with assertion IDs retained in provenance. The read ran in a repeatable-read, read-only PostgreSQL transaction.
 
-The seed contains 1,595 people in selected AETC, ADC and 505SRG mother-unit populations, mapped into 27 reporting workspaces. The raw `hrmis.personnel` population for these mother-unit labels was 1,597; applying effective membership is intentional. Source detail refreshes span June 11–August 21, 2026. An import on September 6 does not make those personnel details current for September 6.
+The seed contains 1,144 AETC people, mapped into AETC reporting workspaces. The supplied `OK 505SRG.xlsx` workbook is treated only as a submission-format reference; it is not a seed source. The raw `hrmis.personnel` population for these mother-unit labels was 1,597; applying effective membership is intentional. Source detail refreshes span June 11–August 21, 2026. An import on September 6 does not make those personnel details current for September 6.
 
-ADC's mother-unit population is not its full operational command: wings such as 5FW and 580ACWW also exist as separate mother units. The prototype makes no complete ADC or PAF-strength claim. No live civilian population was imported.
+No live civilian population was imported.
 
 ## Interpretation of C1
 
@@ -51,7 +51,7 @@ This interpretation introduces an explicit publication boundary: units can prepa
 5. **Corrections remain local.** Units may exclude a misassigned person with supporting context, correct rank/category in a dated return, and add a missing person. Local additions require upstream identity reconciliation. No correction writes to BAGWIS.
 6. **Expose uncertainty.** MWB has no confirmed definition in the supplied evidence. Its availability effect is initially unresolved. Unconfirmed/MWB populations suppress a definitive availability rate. Passes and MWB effects are versioned policy settings; the other default status assumptions are centralized in `DEFAULT_RULES` and documented for validation.
 7. **Preserve audit context.** Each revision stores the owning organization's snapshot, date, actor, reason, person source fields, establishment and policy ID. Current-policy totals and submission-policy historical metrics are distinguishable.
-8. **Keep the demo honest.** Ranks and assignments are real source values; displayed names are pseudonyms, and daily conditions are simulated. The source snapshot stays local and out of Git. Human staff must establish the real operational state.
+8. **Keep the demo honest.** Ranks and assignments are real source values; displayed names are imported from the read-only BAGWIS effective roster, and daily conditions are simulated. The source snapshot stays local and out of Git. Human staff must establish the real operational state.
 
 ## Decisions still required before operational adoption
 
