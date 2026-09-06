@@ -1,0 +1,37 @@
+name: unit-readiness
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: readiness
+      POSTGRES_PASSWORD: local-prototype-only
+      POSTGRES_DB: readiness
+    ports: ["127.0.0.1:5546:5432"]
+    volumes: ["readiness-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U readiness"]
+      interval: 3s
+      retries: 20
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://readiness:local-prototype-only@db/readiness
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+    ports: ["127.0.0.1:8200:8200"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/health')"]
+      interval: 5s
+      retries: 20
+  web:
+    build: ./frontend
+    environment:
+      API_URL: http://api:8200
+    ports: ["127.0.0.1:3200:3200"]
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  readiness-data:
