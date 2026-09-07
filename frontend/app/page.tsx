@@ -37,11 +37,22 @@ async function api(path: string, data?: unknown) {
     body: data === undefined ? undefined : JSON.stringify(data),
     cache: "no-store",
   });
-  const j = await r.json();
-  if (!r.ok)
+  const body = await r.text();
+  let j: any = null;
+  try {
+    j = body ? JSON.parse(body) : null;
+  } catch {
     throw Error(
-      typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail),
+      `Request failed (${r.status}): ${body.slice(0, 160) || "empty response"}`,
     );
+  }
+  if (!r.ok) {
+    throw Error(
+      typeof j?.detail === "string"
+        ? j.detail
+        : JSON.stringify(j?.detail || `Request failed (${r.status})`),
+    );
+  }
   return j;
 }
 const fmt = (n: number | undefined | null) =>
