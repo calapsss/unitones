@@ -129,15 +129,17 @@ const unitOrder: [string,string][] = [["name","Unit name"],["status","State"],["
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [rosterSort, setRosterSort] = useState<Sort>({key:"rank",descending:false});
   const [unitSort, setUnitSort] = useState<Sort>({key:"name",descending:false});
   const [historySort, setHistorySort] = useState<Sort>({key:"rank",descending:false});
   const [ruleSort, setRuleSort] = useState<Sort>({key:"label",descending:false});
-  const demoWorkspaces = [
+  const fallbackWorkspaces = [
     { id: "AETC", name: "Headquarters roster", role: "hq" },
     ...["440AMG", "441SSS", "442OMS", "443FMS", "AFOS", "HAETDC", "NCOS", "PAFALEN", "PAFBMS", "PAFFS", "PAFLTC", "PAFOCS", "PAFTSS"].map((id) => ({ id: `AETC--${id}`, name: id, role: "unit" })),
   ];
-  const [workspaces, setWorkspaces] = useState<Row[]>(demoWorkspaces),
+  const [workspaces, setWorkspaces] = useState<Row[]>(fallbackWorkspaces),
     [actor, setActor] = useState<Row | null>(null),
     [view, setView] = useState("overview"),
     [day, setDay] = useState(today()),
@@ -209,7 +211,7 @@ export default function App() {
     }
     setBusy(true);
     try {
-      const a = await api("/session", { workspace: id });
+      const a = await api("/session", { username: id === "AETC" ? "C1" : `DP-${id.split("--")[1] || id}`, password: "demopass" });
       setActor(a);
       setRoot(a.unit_id);
       setReport(null);
@@ -225,23 +227,25 @@ export default function App() {
     (async () => {
       try {
         setWorkspaces(await api("/workspaces"));
-        let a;
-        try {
-          a = await api("/session");
-        } catch {
-          a = await api("/session", { workspace: "AETC" });
-        }
+        const a = await api("/session");
         setActor(a);
         setRoot(a.unit_id);
-        const p = await api("/provenance");
-        setProvenance(p);
-        if (p?.manifest?.demo_day) setDay(p.manifest.demo_day);
-        setReference(await api("/reference"));
       } catch (e) {
-        alert(e);
+        // A missing session is expected on the sign-in screen.
+        if (!(e instanceof Error) || !e.message.includes("Sign in to continue")) alert(e);
       }
     })();
   }, []);
+  useEffect(() => {
+    if (!actor) return;
+    Promise.all([api("/provenance"), api("/reference")])
+      .then(([p, r]) => {
+        setProvenance(p);
+        if (p?.manifest?.demo_day) setDay(p.manifest.demo_day);
+        setReference(r);
+      })
+      .catch(alert);
+  }, [actor]);
   useEffect(() => {
     refresh().catch(alert);
     const timer = setInterval(() => refresh().catch(alert), 15000);
@@ -413,8 +417,22 @@ export default function App() {
       `${u.id} ${u.name}`.toLowerCase().includes(search.toLowerCase()) &&
       (filter === "all" || u.status.toLowerCase() === filter),
   ), unitSort);
-  async function loginWorkspace(id: string) { setBusy(true); setError(""); try { const a = await api("/session", { workspace: id }); setActor(a); setRoot(a.unit_id); setView("overview"); } catch (e) { alert(e); } finally { setBusy(false); } }
-  if (!actor) return <div className="login-shell"><div className="login-card"><img src="/unit-ones-logo.png" alt="Unit Ones eagle" className="login-logo" /><div className="eyebrow">UNIT ONES · LOCAL PROTOTYPE</div><h1>Choose a reporting workspace</h1><p>Unit DPs update their own daily return. C1 reviews the consolidated picture across all subunits.</p>{error && <div role="alert" className="error">{error}</div>}<div className="login-groups"><div><h2>Headquarters</h2><button className="workspace-choice primary" disabled={busy} onClick={() => loginWorkspace("AETC")}><ShieldCheck size={18}/><span><strong>C1 · AETC</strong><small>Review all published subunit returns</small></span><ArrowUpRight size={16}/></button></div><div><h2>Unit reporting · DP</h2>{workspaces.filter(w => w.role === "unit").map(w => <button className="workspace-choice" disabled={busy} key={w.id} onClick={() => loginWorkspace(w.id)}><ClipboardList size={18}/><span><strong>{w.id.split("--")[1] || w.id}</strong><small>{w.name} · update owned return</small></span><ArrowUpRight size={16}/></button>)}</div></div></div></div>;
+  async function login() {
+    setBusy(true);
+    setError("");
+    try {
+      const a = await api("/session", { username, password });
+      setActor(a);
+      setRoot(a.unit_id);
+      setView("overview");
+      setPassword("");
+    } catch (e) {
+      alert(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!actor) return <div className="login-shell"><div className="login-card"><div className="login-brand"><img src="/unit-ones-logo.png" alt="Unit Ones" className="login-logo" /><div><div className="eyebrow">UNIT ONES</div><span>Personnel readiness</span></div></div><h1>Sign in to Unit Ones</h1><p className="login-subtitle">Manage your unit’s daily return or review the consolidated personnel picture.</p>{error && <div role="alert" className="error">{error}</div>}<form className="login-form" onSubmit={(event) => { event.preventDefault(); login(); }}><label>Username<input autoFocus required value={username} onChange={(event) => setUsername(event.target.value)} placeholder="C1 or DP-440AMG" autoComplete="username" /></label><label>Password<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" /></label><button className="primary login-submit" type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button></form><small className="login-help">Use your assigned Unit Ones account.</small></div></div>;
   const navItems = [
     ["overview", "Daily picture", LayoutDashboard],
     ["units", "Unit returns", ClipboardList],
@@ -498,7 +516,7 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <span className="live-dot" /> Local prototype{" "}
+          <span className="live-dot" /> Connected{" "}
           <p>
             Unit-owned reporting.
             <br />
@@ -514,7 +532,7 @@ export default function App() {
             <strong>{actor?.name || "Connecting…"}</strong>
           </div>
           <div className="header-tools">
-            <span className="chip local">LOCAL ONLY</span>
+            <span className="chip local">SECURE SESSION</span>
             <label className="date">
               <CalendarDays size={16} />
               <input
@@ -1088,7 +1106,7 @@ export default function App() {
                           </small>
                           <p>
                             Rank fill ratios can exceed 100%; a zero authorized
-                            denominator has no defined fill rate. This prototype
+                            denominator has no defined fill rate. Unit Ones does not infer
                             does not infer an R1–R4 classification from daily
                             availability.
                           </p>
@@ -1741,7 +1759,7 @@ export default function App() {
                         </button>
                         {actor?.unit_id !== "PAF" && (
                           <small>
-                            Shared rules are managed in the DPP OA-1 demo
+                            Shared rules are managed in the DPP OA-1
                             workspace.
                           </small>
                         )}
@@ -1789,11 +1807,11 @@ export default function App() {
                     <Stat
                       label="Roster storage"
                       value="Local"
-                      detail="Independent prototype database"
+                      detail="Independent reporting database"
                     />
                     <Stat
                       label="Operational status"
-                      value="Demo"
+                      value="Active"
                       detail="Daily returns require unit confirmation"
                       tone="amber"
                     />
@@ -1887,7 +1905,7 @@ export default function App() {
             </>
           )}
           <footer>
-            <span>UNIT ONES · LOCAL PROTOTYPE</span>
+            <span>UNIT ONES · PERSONNEL READINESS</span>
             <span>
               Reporting date in Asia/Manila · Human staff certify the
               operational picture

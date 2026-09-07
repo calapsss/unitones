@@ -1390,10 +1390,20 @@ select option:checked, select option:hover { background: #24304b; color: #ffffff
 .brandmark img { width:34px; height:34px; object-fit:contain; display:block; }
 .brandmark .legacy-mark { display:none; }
 .login-shell { min-height:100vh; display:grid; place-items:center; padding:32px; background:radial-gradient(circle at 50% 0, rgba(32,185,245,.14), transparent 45%), #050608; color:var(--ink); }
-.login-card { width:min(720px,100%); padding:42px; border:1px solid rgba(255,255,255,.13); border-radius:18px; background:#0b0d11; box-shadow:0 24px 80px rgba(0,0,0,.45); }
+.login-card { width:min(460px,100%); padding:42px; border:1px solid rgba(255,255,255,.13); border-radius:18px; background:linear-gradient(145deg,#10141c,#090b0f); box-shadow:0 24px 80px rgba(0,0,0,.45); }
+.login-brand { display:flex; align-items:center; gap:16px; margin-bottom:28px; color:#aeb8c8; }
+.login-brand .eyebrow { margin:0 0 5px; color:#dce7f5; }
+.login-brand span { font-size:13px; color:#8794a8; }
 .login-logo { display:block; width:88px; height:88px; object-fit:contain; margin-bottom:22px; }
 .login-card h1 { color:#f2f6ff; margin-bottom:10px; }
 .login-card p { color:#aeb8c8; max-width:620px; }
+.login-subtitle { margin-bottom:26px; line-height:1.55; }
+.login-form { display:grid; gap:18px; }
+.login-form label { display:grid; gap:8px; color:#dce7f5; font-size:13px; font-weight:600; }
+.login-form input { width:100%; min-height:46px; padding:0 13px; border-radius:9px; background:#080a0e; color:#f2f6ff; border:1px solid rgba(255,255,255,.16); }
+.login-form input::placeholder { color:#68758a; }
+.login-submit { width:100%; min-height:46px; justify-content:center; margin-top:4px; font-size:14px; }
+.login-help { display:block; margin-top:20px; color:#718096; text-align:center; }
 .login-groups { display:grid; gap:24px; margin-top:30px; }
 .login-groups h2 { color:#dce7f5; margin-bottom:10px; }
 .workspace-choice { width:100%; justify-content:flex-start; text-align:left; gap:14px; margin-top:8px; padding:15px 17px; background:#141821; color:#e4ebf7; border-color:rgba(255,255,255,.16); }

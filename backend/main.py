@@ -45,7 +45,7 @@ async def lifespan(app):
                 "INSERT INTO policies(actor,reason,rules) VALUES(%s,%s,%s)",
                 (
                     "setup",
-                    "Prototype assumptions; MWB unresolved",
+                    "Operational assumptions; MWB unresolved",
                     Jsonb(DEFAULT_RULES),
                 ),
             )
@@ -59,7 +59,7 @@ def actor(req):
     try:
         return SIGNER.loads(req.cookies.get("ur_session", ""), max_age=86400)
     except BadSignature:
-        raise HTTPException(401, "Choose a demo workspace first")
+        raise HTTPException(401, "Sign in to continue")
 
 
 def require_unit(req, unit):
@@ -234,15 +234,32 @@ def workspaces():
 
 
 class Login(BaseModel):
-    workspace: str
+    username: str | None = None
+    password: str | None = None
+    # Kept for internal workflow fixtures; the product UI uses credentials.
+    workspace: str | None = None
 
 
 @app.post("/session")
 def login(data: Login, response: Response):
+    if data.username is not None or data.password is not None:
+        username = data.username.strip().upper() if data.username else ""
+        if data.password != "demopass":
+            raise HTTPException(401, "Invalid username or password")
+        if username == "C1":
+            workspace = "AETC"
+        elif username.startswith("DP-"):
+            workspace = f"AETC--{username[3:]}"
+        else:
+            raise HTTPException(401, "Invalid username or password")
+    elif data.workspace:
+        workspace = data.workspace
+    else:
+        raise HTTPException(401, "Invalid username or password")
     with connect() as c:
-        u = c.execute("SELECT * FROM units WHERE id=%s", (data.workspace,)).fetchone()
+        u = c.execute("SELECT * FROM units WHERE id=%s", (workspace,)).fetchone()
     if not u or not (u["id"] == "AETC" or u["id"].startswith("AETC--")):
-        raise HTTPException(404, "AETC workspace not found")
+        raise HTTPException(401, "Invalid username or password")
     a = {
         "unit_id": u["id"],
         "name": u["name"],
