@@ -22,6 +22,7 @@ SIGNER = URLSafeTimedSerializer(
 )
 DEFAULT_RULES = {
     "available": {"label": "Available", "available": True},
+    "office": {"label": "Office / duty", "available": True},
     "passes": {"label": "Passes", "available": False},
     "hospitalized": {"label": "Hospitalized", "available": False},
     "mwb": {"label": "MWB · definition pending", "available": None},
@@ -71,7 +72,9 @@ def require_unit(req, unit):
 
 
 def policy(c):
-    return c.execute("SELECT * FROM policies ORDER BY id DESC LIMIT 1").fetchone()
+    p = c.execute("SELECT * FROM policies ORDER BY id DESC LIMIT 1").fetchone()
+    p["rules"] = {**DEFAULT_RULES, **(p.get("rules") or {})}
+    return p
 
 
 def unit_rows(c):
@@ -345,6 +348,7 @@ class Entry(BaseModel):
     id: str
     status: Literal[
         "available",
+        "office",
         "passes",
         "hospitalized",
         "mwb",

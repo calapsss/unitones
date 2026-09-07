@@ -1425,6 +1425,9 @@ button:focus-visible, .button:focus-visible, select:focus-visible, input:focus-v
 .review-summary { background:#121a24; }
 .review-summary strong { color:#f2f6ff; }
 .history-table th { background:#121820; color:#d4e0ee; }
+.history-counts { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
+.history-counts span { padding:7px 10px; border:1px solid rgba(255,255,255,.12); border-radius:7px; color:#aeb8c8; background:#10141c; font-size:12px; }
+.history-counts strong { color:#f2f6ff; font-size:16px; }
 footer { border-color:rgba(255,255,255,.1); color:#9aaabd; }
 input:disabled, select:disabled, textarea:disabled { color:#8d9bad; background:#0c0f14; }
 .roster .note-input:hover, .roster .note-input:focus { border-color:rgba(32,185,245,.45); }
