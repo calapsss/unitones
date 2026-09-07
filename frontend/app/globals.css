@@ -1396,8 +1396,10 @@ select option:checked, select option:hover { background: #24304b; color: #ffffff
 .login-brand span { font-size:13px; color:#8794a8; }
 .login-logo { display:block; width:88px; height:88px; object-fit:contain; margin:0 auto; }
 .login-card h1 { color:#f2f6ff; margin-bottom:10px; }
+.login-card h1 { font-family:'Jura','Arial Narrow',sans-serif; font-size:42px; letter-spacing:1px; text-align:center; }
 .login-card p { color:#aeb8c8; max-width:620px; }
 .login-subtitle { margin-bottom:26px; line-height:1.55; }
+.login-subtitle { text-align:center; }
 .login-form { display:grid; gap:18px; }
 .login-form label { display:grid; gap:8px; color:#dce7f5; font-size:13px; font-weight:600; }
 .login-form input { width:100%; min-height:46px; padding:0 13px; border-radius:9px; background:#080a0e; color:#f2f6ff; border:1px solid rgba(255,255,255,.16); }
