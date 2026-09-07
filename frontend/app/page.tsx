@@ -149,6 +149,9 @@ export default function App() {
     [provenance, setProvenance] = useState<Row | null>(null),
     [reference, setReference] = useState<Row | null>(null);
   const [report, setReport] = useState<Row | null>(null),
+    [personnelRows, setPersonnelRows] = useState<Row[]>([]),
+    [personFocus, setPersonFocus] = useState<Row | null>(null),
+    [personHistory, setPersonHistory] = useState<Row[]>([]),
     [unit, setUnit] = useState(""),
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all"),
@@ -246,6 +249,21 @@ export default function App() {
       })
       .catch(alert);
   }, [actor]);
+  useEffect(() => {
+    if (!actor || view !== "personnel") return;
+    api(`/personnel?root=${encodeURIComponent(root)}&day=${day}`)
+      .then(setPersonnelRows)
+      .catch(alert);
+  }, [actor, view, root, day]);
+  async function openPerson(person: Row) {
+    setPersonFocus(person);
+    try {
+      const data = await api(`/personnel/${encodeURIComponent(person.id)}/history`);
+      setPersonHistory(data.history || []);
+    } catch (e) {
+      alert(e);
+    }
+  }
   useEffect(() => {
     refresh().catch(alert);
     const timer = setInterval(() => refresh().catch(alert), 15000);
@@ -435,6 +453,7 @@ export default function App() {
   if (!actor) return <div className="login-shell"><div className="login-card"><div className="login-brand"><img src="/unit-ones-logo.png" alt="Unit Ones" className="login-logo" /></div><h1>Unit Ones</h1><p className="login-subtitle">Manage your unit’s daily return or review the consolidated personnel picture.</p>{error && <div role="alert" className="error">{error}</div>}<form className="login-form" onSubmit={(event) => { event.preventDefault(); login(); }}><label>Username<input autoFocus required value={username} onChange={(event) => setUsername(event.target.value)} placeholder="C1 or DP-440AMG" autoComplete="username" /></label><label>Password<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" /></label><button className="primary login-submit" type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button></form><small className="login-help">Use your assigned Unit Ones account.</small></div></div>;
   const navItems = [
     ["overview", "Daily picture", LayoutDashboard],
+    ["personnel", "Personnel", Users],
     ["units", "Unit returns", ClipboardList],
     ["strength", "Strength & establishment", Layers],
     ["history", "Revision history", History],
@@ -882,6 +901,26 @@ export default function App() {
                 </>
               )}
 
+              {view === "personnel" && (
+                <>
+                  <div className="page-title">
+                    <div>
+                      <div className="eyebrow">PERSONNEL ROSTER</div>
+                      <h1>Personnel</h1>
+                      <p>Search every assigned person, review daily status history, and maintain transferred records.</p>
+                    </div>
+                    <Users size={32} />
+                  </div>
+                  <section className="panel">
+                    <div className="table-toolbar">
+                      <label className="search"><Search size={17} /><input aria-label="Search all personnel" placeholder="Search name, rank or unit…" value={search} onChange={e => setSearch(e.target.value)} /></label>
+                      <select aria-label="Personnel roster scope" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Current and transferred</option><option value="active">Current personnel</option><option value="transferred">Transferred archive</option></select>
+                      <span className="table-count">{personnelRows.filter(p => (filter === "all" || p.status === filter) && `${p.name} ${p.rank} ${p.unit_name}`.toLowerCase().includes(search.toLowerCase())).length} people</span>
+                    </div>
+                    <div className="table-scroll"><table className="roster"><thead><tr><th>Personnel</th><th>Unit</th><th>Category</th><th>Assignment</th><th>History</th><th /></tr></thead><tbody>{personnelRows.filter(p => (filter === "all" || p.status === filter) && `${p.name} ${p.rank} ${p.unit_name}`.toLowerCase().includes(search.toLowerCase())).map(p => <tr key={p.id}><td><strong>{p.rank} {p.name}</strong><small>{p.id}</small></td><td>{p.unit_name}</td><td>{p.category}</td><td><Chip value={p.status === "transferred" ? "Transferred" : "Current"} />{p.ended_on && <small>Ended {p.ended_on}</small>}</td><td><button className="icon-button" aria-label={`View history for ${p.name}`} onClick={() => openPerson(p)}><History size={17} /></button></td><td>{p.status === "active" && actor?.role === "hq" || (p.status === "active" && actor?.unit_id === p.unit_id) ? <button onClick={async () => { const reason = window.prompt("Transfer reason"); if (!reason) return; await api(`/personnel/${encodeURIComponent(p.id)}/transfer`, { day, reason }); setPersonnelRows(await api(`/personnel?root=${encodeURIComponent(root)}&day=${day}`)); }}>Transfer</button> : null}</td></tr>)}</tbody></table></div>
+                  </section>
+                </>
+              )}
               {(view === "units" || view === "strength") && (
                 <>
                   <div className="page-title">
@@ -1976,6 +2015,9 @@ export default function App() {
             </button>
           </section>
         </div>
+      )}
+      {personFocus && (
+        <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-label="Personnel history"><button className="close" aria-label="Close personnel history" onClick={() => setPersonFocus(null)}><X /></button><div className="eyebrow">PERSONNEL HISTORY</div><h2>{personFocus.name}</h2><p>{personFocus.rank} · {personFocus.unit_name} · {personFocus.category}</p>{personFocus.ended_on && <div className="notice">Transferred on {personFocus.ended_on}. {personFocus.end_reason}</div>}<div className="table-scroll history-table"><table><thead><tr><th>Date</th><th>Status</th><th>Publication</th><th>Note</th></tr></thead><tbody>{personHistory.map(h => <tr key={`${h.day}-${h.revision}`}><td>{h.day}</td><td><Chip value={h.status} /></td><td>{h.published ? "Published" : "Draft"}</td><td>{h.note || "—"}</td></tr>)}</tbody></table>{!personHistory.length && <div className="empty">No daily records for this person.</div>}</div></section></div>
       )}
       {detail && (
         <div className="modal-backdrop">

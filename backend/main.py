@@ -29,6 +29,7 @@ DEFAULT_RULES = {
     "detached": {"label": "Detached / duty elsewhere", "available": False},
     "unknown": {"label": "Unconfirmed", "available": None},
     "not_assigned": {"label": "Not assigned · unit correction", "available": False},
+    "transferred": {"label": "Transferred", "available": False},
 }
 
 
@@ -91,11 +92,12 @@ def compute(entries, rules):
     categories = {}
     ranks = {}
     for e in entries:
+        counts.setdefault(e["status"], 0)
         counts[e["status"]] += 1
-        if e["status"] != "not_assigned":
+        if e["status"] not in ("not_assigned", "transferred"):
             categories[e["category"]] = categories.get(e["category"], 0) + 1
             ranks[e["rank"]] = ranks.get(e["rank"], 0) + 1
-    assigned = len(entries) - counts["not_assigned"]
+    assigned = len(entries) - counts["not_assigned"] - counts.get("transferred", 0)
     available = sum(
         v
         for k, v in counts.items()
@@ -304,8 +306,8 @@ def read_return(unit: str, day: date, req: Request):
             raise HTTPException(404, "Unit not found")
         r = get_return(c, unit, day)
         people = c.execute(
-            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s ORDER BY category,name",
-            (unit, day),
+            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s AND (ended_on IS NULL OR ended_on>=%s) ORDER BY category,name",
+            (unit, day, day),
         ).fetchall()
         entries = (
             r["entries"]
@@ -350,6 +352,7 @@ class Entry(BaseModel):
         "detached",
         "unknown",
         "not_assigned",
+        "transferred",
     ]
     note: str = Field(default="", max_length=500)
     rank: str | None = Field(default=None, min_length=1, max_length=40)
@@ -397,8 +400,8 @@ def save_return(unit: str, data: ReturnInput, req: Request):
                 409, "This return changed. Reload before saving your changes."
             )
         people = c.execute(
-            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s ORDER BY id",
-            (unit, data.day),
+            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s AND (ended_on IS NULL OR ended_on>=%s) ORDER BY id",
+            (unit, data.day, data.day),
         ).fetchall()
         supplied = {e.id: e for e in data.entries}
         if len(supplied) != len(data.entries) or set(supplied) != {
@@ -516,9 +519,23 @@ class PersonInput(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+class TransferInput(BaseModel):
+    day: date
+    reason: str = Field(min_length=3, max_length=500)
+
+
+def manage_personnel(req, unit):
+    a = actor(req)
+    with connect() as c:
+        allowed = unit in scope(unit_rows(c), a["unit_id"])
+    if not allowed or (a["role"] != "hq" and a["unit_id"] != unit):
+        raise HTTPException(403, "You cannot manage this unit roster")
+    return a
+
+
 @app.post("/units/{unit}/personnel")
 def add_person(unit: str, data: PersonInput, req: Request):
-    a = require_unit(req, unit)
+    a = manage_personnel(req, unit)
     if data.day > datetime.now(ZoneInfo("Asia/Manila")).date():
         raise HTTPException(422, "Choose today or a previous reporting date")
     with connect() as c:
@@ -542,6 +559,56 @@ def add_person(unit: str, data: PersonInput, req: Request):
                 data.day,
             ),
         ).fetchone()
+
+
+@app.get("/personnel")
+def personnel(root: str, day: date, req: Request):
+    a = actor(req)
+    with connect() as c:
+        allowed = scope(unit_rows(c), a["unit_id"])
+        if root not in allowed:
+            raise HTTPException(403, "Outside your workspace")
+        rows = c.execute(
+            "SELECT p.*,u.name AS unit_name FROM personnel p JOIN units u ON u.id=p.unit_id WHERE p.unit_id = ANY(%s) ORDER BY p.ended_on NULLS FIRST,p.name",
+            (list(scope(unit_rows(c), root)),),
+        ).fetchall()
+        for p in rows:
+            p["current"] = p["starts_on"] <= day and (p["ended_on"] is None or p["ended_on"] >= day)
+            p["status"] = "transferred" if p["ended_on"] is not None and p["ended_on"] < day else "active"
+        return rows
+
+
+@app.post("/personnel/{person_id}/transfer")
+def transfer_person(person_id: str, data: TransferInput, req: Request):
+    with connect() as c:
+        p = c.execute("SELECT * FROM personnel WHERE id=%s", (person_id,)).fetchone()
+        if not p:
+            raise HTTPException(404, "Personnel record not found")
+    a = manage_personnel(req, p["unit_id"])
+    if data.day > datetime.now(ZoneInfo("Asia/Manila")).date():
+        raise HTTPException(422, "Choose today or a previous date")
+    with connect() as c:
+        return c.execute("UPDATE personnel SET ended_on=%s,end_reason=%s WHERE id=%s RETURNING id,ended_on,end_reason", (data.day, data.reason.strip(), person_id)).fetchone()
+
+
+@app.get("/personnel/{person_id}/history")
+def personnel_history(person_id: str, req: Request):
+    a = actor(req)
+    with connect() as c:
+        p = c.execute("SELECT p.*,u.name AS unit_name FROM personnel p JOIN units u ON u.id=p.unit_id WHERE p.id=%s", (person_id,)).fetchone()
+        if not p or p["unit_id"] not in scope(unit_rows(c), a["unit_id"]):
+            raise HTTPException(404, "Personnel record not found")
+        rows = c.execute("SELECT day,revision,published,entries FROM returns WHERE unit_id=%s ORDER BY day DESC,revision DESC", (p["unit_id"],)).fetchall()
+        history = []
+        seen = set()
+        for row in rows:
+            if row["day"] in seen:
+                continue
+            entry = next((e for e in row["entries"] if e.get("id") == person_id), None)
+            if entry:
+                history.append({"day": row["day"], "revision": row["revision"], "published": row["published"], "status": entry.get("status", "unknown"), "note": entry.get("note", "")})
+                seen.add(row["day"])
+        return {"person": p, "history": history}
 
 
 @app.get("/trend")

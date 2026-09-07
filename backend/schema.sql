@@ -24,6 +24,8 @@ CREATE INDEX IF NOT EXISTS returns_lookup ON returns(unit_id,day,revision DESC);
 ALTER TABLE returns ADD COLUMN IF NOT EXISTS organization jsonb NOT NULL DEFAULT '{}';
 ALTER TABLE returns ADD COLUMN IF NOT EXISTS establishment jsonb NOT NULL DEFAULT '{}';
 ALTER TABLE personnel ADD COLUMN IF NOT EXISTS starts_on date NOT NULL DEFAULT '1900-01-01';
+ALTER TABLE personnel ADD COLUMN IF NOT EXISTS ended_on date;
+ALTER TABLE personnel ADD COLUMN IF NOT EXISTS end_reason text NOT NULL DEFAULT '';
 CREATE OR REPLACE FUNCTION protect_history() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN RAISE EXCEPTION 'History is append-only'; END; $$;
 DO $$ BEGIN
