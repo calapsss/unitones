@@ -1,4 +1,5 @@
 "use client";
+import { sortRows, type Sort } from "./table-sort";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Activity,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 
 type Row = Record<string, any>;
+const reportDescription = (text: string) => text.replace(/BAGWIS-derived roster/gi, "initial roster").replace(/BAGWIS/gi, "initial roster");
 const categories = ["Officer", "EP", "Civilian", "Unclassified"];
 const today = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(
@@ -108,8 +110,23 @@ function Bar({ metrics }: { metrics: Row }) {
   );
 }
 
+function TableOrder({ label, options, value, onChange }: { label: string; options: [string,string][]; value: Sort; onChange: (sort: Sort) => void }) {
+  return <div className="table-order"><label>{label}<select aria-label={label} value={value.key} onChange={e => onChange({...value,key:e.target.value})}>{options.map(([key,name]) => <option key={key} value={key}>{name}</option>)}</select></label><button aria-label={`${label}: reverse order`} onClick={() => onChange({...value,descending:!value.descending})}>{value.descending ? "Descending ↓" : "Ascending ↑"}</button></div>;
+}
+const personnelOrder: [string,string][] = [["rank","Rank (seniority)"],["name","Name"],["category","Category"],["status","Daily status"],["note","Note"]];
+const unitOrder: [string,string][] = [["name","Unit name"],["status","State"],["metrics.assigned","Assigned"],["metrics.available","Available"],["metrics.unresolved","Unresolved"],["authorized","Authorized TO"],["fill_rate","Fill rate"],["updated_at","Latest published"]];
+
 export default function App() {
-  const [workspaces, setWorkspaces] = useState<Row[]>([]),
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [rosterSort, setRosterSort] = useState<Sort>({key:"rank",descending:false});
+  const [unitSort, setUnitSort] = useState<Sort>({key:"name",descending:false});
+  const [historySort, setHistorySort] = useState<Sort>({key:"rank",descending:false});
+  const [ruleSort, setRuleSort] = useState<Sort>({key:"label",descending:false});
+  const demoWorkspaces = [
+    { id: "AETC", name: "Headquarters roster", role: "hq" },
+    ...["440AMG", "441SSS", "442OMS", "443FMS", "AFOS", "HAETDC", "NCOS", "PAFALEN", "PAFBMS", "PAFFS", "PAFLTC", "PAFOCS", "PAFTSS"].map((id) => ({ id: `AETC--${id}`, name: id, role: "unit" })),
+  ];
+  const [workspaces, setWorkspaces] = useState<Row[]>(demoWorkspaces),
     [actor, setActor] = useState<Row | null>(null),
     [view, setView] = useState("overview"),
     [day, setDay] = useState(today()),
@@ -365,13 +382,13 @@ export default function App() {
   }
   const editable = actor?.role === "unit" && actor.unit_id === unit;
   const entries: Row[] = report?.entries || [];
-  const filtered = entries.filter(
+  const filtered = sortRows(entries.filter(
     (e) =>
       (filter === "all" || e.status === filter) &&
       `${e.name} ${e.rank} ${e.category}`
         .toLowerCase()
         .includes(search.toLowerCase()),
-  );
+  ), rosterSort);
   const rules = report?.policy?.rules || dash?.policy?.rules || {};
   const available = entries.filter(
     (e) => e.status !== "not_assigned" && rules[e.status]?.available === true,
@@ -380,11 +397,13 @@ export default function App() {
   const unresolved = entries.filter(
     (e) => e.status !== "not_assigned" && rules[e.status]?.available === null,
   ).length;
-  const visibleUnits = (dash?.units || []).filter(
+  const visibleUnits = sortRows((dash?.units || []).filter(
     (u: Row) =>
       `${u.id} ${u.name}`.toLowerCase().includes(search.toLowerCase()) &&
       (filter === "all" || u.status.toLowerCase() === filter),
-  );
+  ), unitSort);
+  async function loginWorkspace(id: string) { setBusy(true); setError(""); try { const a = await api("/session", { workspace: id }); setActor(a); setRoot(a.unit_id); setView("overview"); } catch (e) { alert(e); } finally { setBusy(false); } }
+  if (!actor) return <div className="login-shell"><div className="login-card"><img src="/unit-ones-logo.png" alt="Unit Ones eagle" className="login-logo" /><div className="eyebrow">UNIT ONES · LOCAL PROTOTYPE</div><h1>Choose a reporting workspace</h1><p>Unit DPs update their own daily return. C1 reviews the consolidated picture across all subunits.</p>{error && <div role="alert" className="error">{error}</div>}<div className="login-groups"><div><h2>Headquarters</h2><button className="workspace-choice primary" disabled={busy} onClick={() => loginWorkspace("AETC")}><ShieldCheck size={18}/><span><strong>C1 · AETC</strong><small>Review all published subunit returns</small></span><ArrowUpRight size={16}/></button></div><div><h2>Unit reporting · DP</h2>{workspaces.filter(w => w.role === "unit").map(w => <button className="workspace-choice" disabled={busy} key={w.id} onClick={() => loginWorkspace(w.id)}><ClipboardList size={18}/><span><strong>{w.id.split("--")[1] || w.id}</strong><small>{w.name} · update owned return</small></span><ArrowUpRight size={16}/></button>)}</div></div></div></div>;
   const navItems = [
     ["overview", "Daily picture", LayoutDashboard],
     ["units", "Unit returns", ClipboardList],
@@ -395,15 +414,29 @@ export default function App() {
   ] as const;
 
   return (
-    <div className="app-shell">
+    <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       <aside>
         <div className="brand">
-          <div className="brandmark">
-            <Activity size={25} />
+          <div
+            className="brandmark"
+            role="button"
+            tabIndex={0}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setSidebarCollapsed((collapsed) => !collapsed);
+              }
+            }}
+          ><img src="/unit-ones-logo.png" alt="Unit Ones" />
+            <svg className="legacy-mark" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M13 29c0-9 6-16 15-16 5 0 9 2 12 6l5-2-2 7c1 2 2 4 2 6 0 8-7 13-16 13S13 38 13 29Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"/>
+              <path d="M17 18c-1-5 2-9 6-11 0 4 3 5 5 6M39 25l6 2-6 4M21 29h.1M32 29h.1M22 37c3 2 7 2 10 0" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/>
+            </svg>
           </div>
-          <div>
-            UNIT ONES<small>PERSONNEL OPERATIONS</small>
-          </div>
+          <div className="brand-name">UNIT ONES</div>
         </div>
         <div className="workspace-label">AETC REPORTING WORKSPACE</div>
         <label className="workspace">
@@ -481,14 +514,15 @@ export default function App() {
                 onChange={(e) => changeDate(e.target.value)}
               />
             </label>
-            <span className="avatar">{actor?.role === "hq" ? "HQ" : "UN"}</span>
+            <span className="avatar">{actor?.role === "hq" ? "C1" : "DP"}</span>
+            <button className="logout" onClick={async () => { await api("/session/logout", {}); setActor(null); setDash(null); setReport(null); }}>Log out</button>
           </div>
         </header>
         <main>
           <div className="demo-strip">
             <span className="live-dot" />
             <strong>From the source to the daily picture</strong>
-            <span>BAGWIS personnel, unit reporting, and headquarters consolidation</span>
+            <span>Each unit updates · C1 reviews all subunits · Recompute the daily picture</span>
           </div>
           {error && (
             <div role="alert" className="error">
@@ -515,7 +549,7 @@ export default function App() {
                     <div>
                       <div className="eyebrow">DAILY PERSONNEL PICTURE</div>
                       <h1>
-                        Readiness for the day
+                        Readiness for day
                         <span className="title-dot">.</span>
                       </h1>
                       <p>
@@ -560,6 +594,22 @@ export default function App() {
                         </a>
                       )}
                     </div>
+                  </div>
+                  <section className="panel staffing-summary">
+                    <div className="panel-heading"><div><h2>Personnel fill-up</h2><p>{dash.staffing?.authority}</p></div><Chip value={dash.staffing?.rating || "TO required"} /></div>
+                    <div className="stats">
+                      <Stat label="Actual personnel" value={fmt(dash.staffing?.actual)} detail="Roster strength with published corrections" />
+                      <Stat label="Authorized TO" value={fmt(dash.staffing?.authorized)} detail="Officer, EP and civilian positions" />
+                      <Stat label="Fill-up rate" value={dash.staffing?.fill_rate == null ? "—" : `${dash.staffing.fill_rate}%`} detail="Actual personnel ÷ TO × 100" />
+                      <Stat label="Personnel readiness" value={dash.staffing?.rating || "—"} detail="R1 ≥85% · R2 ≥74.5% · R3 ≥50.51% · R4 ≤50.5%" />
+                    </div>
+                    <p className="panel-foot">Staffing includes the roster of units awaiting a daily return. Daily conditions below use published returns for the selected date.</p>
+                  </section>
+                  <div className="stats daily-conditions">
+                    <Stat label="MWB" value={fmt(dash.metrics.counts.mwb)} detail="Published MWB reports" tone="amber" />
+                    <Stat label="Passes" value={fmt(dash.metrics.counts.passes)} detail="Published passes reports" />
+                    <Stat label="Leave" value={fmt(dash.metrics.counts.leave)} detail="Published leave reports" />
+                    <Stat label="Hospitalized" value={fmt(dash.metrics.counts.hospitalized)} detail="Published hospitalization reports" />
                   </div>
                   <div className="stats">
                     <Stat
@@ -846,8 +896,7 @@ export default function App() {
                       </div>
                       <div className="notice">
                         Only unit-declared establishments with a named authority
-                        produce fill rates. BAGWIS’s selected roster is not a
-                        complete PAF or civilian population.
+                        produce subunit fill rates. AETC uses the supplied TO S-2025 total of 1,481.
                       </div>
                     </>
                   )}
@@ -874,6 +923,7 @@ export default function App() {
                       </select>
                       <span>{visibleUnits.length} units</span>
                     </div>
+                    <TableOrder label="Sort units by" options={unitOrder} value={unitSort} onChange={setUnitSort} />
                     <div className="table-scroll">
                       <table>
                         <thead>
@@ -1020,13 +1070,10 @@ export default function App() {
                             self-contained.
                           </p>
                           <p>
-                            AETC’s recorded establishment totals are 1,826
-                            (2022) and 1,481 (2025). These are reference values,
-                            not a validated current establishment for this
-                            imported population.
+                            AETC uses TO S-2025: 356 officers, 1,000 EP and 125 civilian personnel (1,481 total). TO S-2022 totals 1,826 and is retained as a reference.
                           </p>
                           <small>
-                            Strength 2.xlsx · MIL & CIV HR SR with TAS · B77:I77
+                            Strength.xlsx · MIL & CIV HR SR with TAS · B77:I77
                           </small>
                           <p>
                             Rank fill ratios can exceed 100%; a zero authorized
@@ -1193,6 +1240,7 @@ export default function App() {
                         </button>
                       </div>
                     )}
+                    <TableOrder label="Sort personnel by" options={personnelOrder} value={rosterSort} onChange={sort => {setRosterSort(sort); setPage(0);}} />
                     <div className="table-scroll">
                       <table className="roster">
                         <thead>
@@ -1272,8 +1320,8 @@ export default function App() {
                                     {e.rank} {e.name}
                                   </strong>
                                   <small>
-                                    {e.source.system === "BAGWIS"
-                                      ? "BAGWIS baseline"
+                                    {e.source.system !== "unit-reported"
+                                      ? "Initial roster"
                                       : "Unit-reported addition"}
                                     {e.source.assignment_review
                                       ? " · Review assignment"
@@ -1475,7 +1523,7 @@ export default function App() {
                                 Revision {h.revision} ·{" "}
                                 {h.published ? "Published" : "Draft"}
                               </strong>
-                              <small>{h.reason}</small>
+                              <small>{reportDescription(h.reason)}</small>
                             </div>
                             <span>{time(h.created_at)}</span>
                             <ChevronRight size={16} />
@@ -1580,6 +1628,7 @@ export default function App() {
                           for audit.
                         </p>
                       </div>
+                      <TableOrder label="Sort rules by" options={[["label","Status"],["effect","Availability effect"]]} value={ruleSort} onChange={setRuleSort} />
                       <table>
                         <thead>
                           <tr>
@@ -1588,8 +1637,8 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.entries(dash.policy.rules).map(([k, v]) => (
-                            <tr key={k}>
+                          {sortRows<Row>(Object.entries(dash.policy.rules).map(([k,v]) => ({...(v as Row),id:k,effect:(v as Row).available === null ? "Unresolved" : (v as Row).available ? "Available" : "Unavailable / excluded"})),ruleSort).map(v => (
+                            <tr key={v.id}>
                               <td>{(v as Row).label}</td>
                               <td>
                                 {(v as Row).available === null
@@ -1690,7 +1739,7 @@ export default function App() {
                         {policyHistory.map((p) => (
                           <div className="policy-version" key={p.id}>
                             <strong>Version {p.id}</strong>
-                            <p>{p.reason}</p>
+                            <p>{reportDescription(p.reason)}</p>
                             <small>
                               {p.actor} · {time(p.created_at)}
                             </small>
@@ -1717,7 +1766,7 @@ export default function App() {
                   </div>
                   <div className="stats">
                     <Stat
-                      label="BAGWIS baseline"
+                      label="Initial roster"
                       value={fmt(provenance?.manifest.personnel_count)}
                       detail="Current-roster members at import"
                     />
@@ -1727,8 +1776,8 @@ export default function App() {
                       detail="Candidate unit ownership mapping"
                     />
                     <Stat
-                      label="Source connection"
-                      value="Read only"
+                      label="Roster storage"
+                      value="Local"
                       detail="Independent prototype database"
                     />
                     <Stat
@@ -1747,7 +1796,7 @@ export default function App() {
                         <ol>
                           <li>
                             <strong>
-                              BAGWIS establishes the starting roster.
+                              The initial roster establishes assigned strength.
                             </strong>{" "}
                             Effective current-roster membership, rank and
                             mother/sub-unit assignment are imported once. Source
@@ -1786,7 +1835,7 @@ export default function App() {
                         </ol>
                         <p>
                           Imported {time(provenance?.manifest.imported_at)}.
-                          Names come from the BAGWIS effective roster; source identifiers remain
+                          The seeded roster is maintained locally; record identifiers remain
                           local. The importer does not overwrite subsequent unit
                           reporting.
                         </p>
@@ -1798,14 +1847,12 @@ export default function App() {
                       </div>
                       <div className="prose">
                         <p>
-                          The reporting tree is derived from selected BAGWIS
+                          The reporting tree is derived from initial roster
                           mother-unit and sub-unit assignments. It is a
                           candidate ownership model, not a certified command
                           hierarchy.
                         </p>
-                        {provenance?.manifest.limitations.map((s: string) => (
-                          <p key={s}>{s}</p>
-                        ))}
+
                         <p>
                           Unknown sub-unit labels are routed to “Assignment
                           review.” No command or PAF-wide completeness is
@@ -1819,8 +1866,7 @@ export default function App() {
                         </p>
                         <small>
                           Workbook evidence:{" "}
-                          {reference?.notes ||
-                            "See docs/discovery.md in the repository."}
+                          Strength.xlsx · MIL & CIV HR SR with TAS · row 77
                         </small>
                       </div>
                     </section>
@@ -1947,22 +1993,12 @@ export default function App() {
             </div>
             <div className="prose">
               <p>
-                Source: {detail.source.system} ·{" "}
-                {detail.source.table || "Unit correction"}
+                Record: {detail.source.system === "unit-reported" ? "Unit-reported addition" : "Initial roster"}
               </p>
-              <p>
-                Source assignment: {detail.source.mother_unit || "Local"} /{" "}
-                {detail.source.sub_unit || report?.unit.name}
-              </p>
-              <p>
-                Source fetched: {time(detail.source.fetched_at)}
-                <br />
-                Import:{" "}
-                {time(detail.source.imported_at || detail.source.created_at)}
-              </p>
+              <p>Owning unit: {report?.unit.name}</p>
               <p>
                 Corrections apply to this dated return and are preserved in each
-                revision. BAGWIS is not changed.
+                revision. The initial roster is preserved.
               </p>
             </div>
             {editable && (
@@ -2094,7 +2130,7 @@ export default function App() {
               {revision.unit_id} · {revision.day} · {time(revision.created_at)}
             </p>
             <div className="notice">
-              {revision.reason}
+              {reportDescription(revision.reason)}
               <br />
               Recorded by {revision.actor} · Submission policy v
               {revision.policy_id}
@@ -2108,6 +2144,7 @@ export default function App() {
               reported assigned. Original statuses below are preserved
               independently of current policy.
             </p>
+            <TableOrder label="Sort revision by" options={personnelOrder} value={historySort} onChange={setHistorySort} />
             <div className="table-scroll history-table">
               <table>
                 <thead>
@@ -2118,7 +2155,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {revision.entries.map((e: Row) => (
+                  {sortRows<Row>(revision.entries, historySort).map((e: Row) => (
                     <tr key={e.id}>
                       <td>
                         {e.rank} {e.name}

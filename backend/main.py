@@ -1,4 +1,5 @@
 import os, json
+from strength import AETC_TO, strength
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -184,7 +185,17 @@ def dashboard(c, root, day):
                 "updated_at": r["created_at"] if r else None,
             }
         )
+    actual = sum((r["metrics"]["assigned"] + r["pending_additions"]) if r["metrics"] else r["baseline"] for r in rows)
+    total_to = sum(AETC_TO["counts"].values()) if root == "AETC" else (
+        sum(r["authorized"] for r in rows) if rows and all(r["authorized"] for r in rows) else None
+    )
+    for row in rows:
+        row["strength"] = strength(
+            row["metrics"]["assigned"] + row["pending_additions"] if row["metrics"] else row["baseline"],
+            row["authorized"],
+        )
     return dict(
+        staffing={**strength(actual, total_to), "authority": AETC_TO["authority"] if root == "AETC" else "Published unit establishments"},
         day=day,
         scope=root,
         policy=p,
@@ -247,6 +258,12 @@ def login(data: Login, response: Response):
 @app.get("/session")
 def session(req: Request):
     return actor(req)
+
+
+@app.post("/session/logout")
+def logout(response: Response):
+    response.delete_cookie("ur_session")
+    return {"ok": True}
 
 
 @app.get("/dashboard")
@@ -466,9 +483,10 @@ def provenance(req: Request):
 @app.get("/export")
 def export(req: Request, day: date, root: str = "AETC"):
     result = summary(req, day, root)
+    result["units"] = [{k: v for k, v in unit.items() if k != "source"} for unit in result["units"]]
     return {
         "schema_version": "unit-readiness.v1",
-        "purpose": "Candidate DPP OA-1 / BAGWIS aggregate input; not an approved integration",
+        "purpose": "Unit Ones daily readiness snapshot",
         **result,
     }
 

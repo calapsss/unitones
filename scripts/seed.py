@@ -70,7 +70,7 @@ def run():
 
         unit(
             "PAF",
-            "DPP OA-1 · pilot coverage",
+            "C1 · AETC overview",
             None,
             False,
             {
