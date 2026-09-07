@@ -309,7 +309,7 @@ def read_return(unit: str, day: date, req: Request):
             raise HTTPException(404, "Unit not found")
         r = get_return(c, unit, day)
         people = c.execute(
-            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s AND (ended_on IS NULL OR ended_on>=%s) ORDER BY category,name",
+            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s AND (ended_on IS NULL OR ended_on>%s) ORDER BY category,name",
             (unit, day, day),
         ).fetchall()
         entries = (
@@ -404,7 +404,7 @@ def save_return(unit: str, data: ReturnInput, req: Request):
                 409, "This return changed. Reload before saving your changes."
             )
         people = c.execute(
-            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s AND (ended_on IS NULL OR ended_on>=%s) ORDER BY id",
+            "SELECT * FROM personnel WHERE unit_id=%s AND starts_on<=%s AND (ended_on IS NULL OR ended_on>%s) ORDER BY id",
             (unit, data.day, data.day),
         ).fetchall()
         supplied = {e.id: e for e in data.entries}
@@ -577,8 +577,8 @@ def personnel(root: str, day: date, req: Request):
             (list(scope(unit_rows(c), root)),),
         ).fetchall()
         for p in rows:
-            p["current"] = p["starts_on"] <= day and (p["ended_on"] is None or p["ended_on"] >= day)
-            p["status"] = "transferred" if p["ended_on"] is not None and p["ended_on"] < day else "active"
+            p["current"] = p["starts_on"] <= day and (p["ended_on"] is None or p["ended_on"] > day)
+            p["status"] = "transferred" if p["ended_on"] is not None and p["ended_on"] <= day else "active"
         return rows
 
 
