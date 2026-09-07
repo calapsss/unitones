@@ -150,6 +150,7 @@ export default function App() {
     [reference, setReference] = useState<Row | null>(null);
   const [report, setReport] = useState<Row | null>(null),
     [personnelRows, setPersonnelRows] = useState<Row[]>([]),
+    [rosterTarget, setRosterTarget] = useState("AETC"),
     [personFocus, setPersonFocus] = useState<Row | null>(null),
     [personHistory, setPersonHistory] = useState<Row[]>([]),
     [unit, setUnit] = useState(""),
@@ -251,6 +252,7 @@ export default function App() {
   }, [actor]);
   useEffect(() => {
     if (!actor || view !== "personnel") return;
+    setRosterTarget(actor.role === "hq" ? "AETC" : actor.unit_id);
     api(`/personnel?root=${encodeURIComponent(root)}&day=${day}`)
       .then(setPersonnelRows)
       .catch(alert);
@@ -915,6 +917,8 @@ export default function App() {
                     <div className="table-toolbar">
                       <label className="search"><Search size={17} /><input aria-label="Search all personnel" placeholder="Search name, rank or unit…" value={search} onChange={e => setSearch(e.target.value)} /></label>
                       <select aria-label="Personnel roster scope" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Current and transferred</option><option value="active">Current personnel</option><option value="transferred">Transferred archive</option></select>
+                      {actor?.role === "hq" && <select aria-label="Roster unit" value={rosterTarget} onChange={e => setRosterTarget(e.target.value)}>{Array.from(new Map(personnelRows.map(p => [p.unit_id, p.unit_name]))).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>}
+                      {(actor?.role === "hq" || actor?.unit_id === rosterTarget) && <button onClick={() => { setUnit(rosterTarget); setAdding(true); }}><Plus size={16} />Add person</button>}
                       <span className="table-count">{personnelRows.filter(p => (filter === "all" || p.status === filter) && `${p.name} ${p.rank} ${p.unit_name}`.toLowerCase().includes(search.toLowerCase())).length} people</span>
                     </div>
                     <div className="table-scroll"><table className="roster"><thead><tr><th>Personnel</th><th>Unit</th><th>Category</th><th>Assignment</th><th>History</th><th /></tr></thead><tbody>{personnelRows.filter(p => (filter === "all" || p.status === filter) && `${p.name} ${p.rank} ${p.unit_name}`.toLowerCase().includes(search.toLowerCase())).map(p => <tr key={p.id}><td><strong>{p.rank} {p.name}</strong><small>{p.id}</small></td><td>{p.unit_name}</td><td>{p.category}</td><td><Chip value={p.status === "transferred" ? "Transferred" : "Current"} />{p.ended_on && <small>Ended {p.ended_on}</small>}</td><td><button className="icon-button" aria-label={`View history for ${p.name}`} onClick={() => openPerson(p)}><History size={17} /></button></td><td>{p.status === "active" && actor?.role === "hq" || (p.status === "active" && actor?.unit_id === p.unit_id) ? <button onClick={async () => { const reason = window.prompt("Transfer reason"); if (!reason) return; await api(`/personnel/${encodeURIComponent(p.id)}/transfer`, { day, reason }); setPersonnelRows(await api(`/personnel?root=${encodeURIComponent(root)}&day=${day}`)); }}>Transfer</button> : null}</td></tr>)}</tbody></table></div>
